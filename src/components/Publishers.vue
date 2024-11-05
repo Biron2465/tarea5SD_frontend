@@ -1,5 +1,5 @@
 <template>
-  <div class="container mt-4" v-if="isAuthenticated">
+  <div class="container mt-4">
     <h2>Publishers</h2>
     <ul class="list-group mb-3">
       <li v-for="publisher in publishers" :key="publisher.id" class="list-group-item">
@@ -38,14 +38,6 @@
       </form>
     </div>
   </div>
-
-  <!-- Modal de autenticación para pedir la clave -->
-  <div v-else class="auth-modal">
-    <h2>Enter Password</h2>
-    <input type="password" v-model="password" placeholder="Enter password">
-    <button @click="authenticate">Submit</button>
-    <p v-if="authError" class="error">Incorrect password. Please try again.</p>
-  </div>
 </template>
 
 <script>
@@ -56,9 +48,6 @@ export default {
   data() {
     return {
       publishers: [],
-      password: '',       // Clave de autenticación
-      authError: false,    // Indica si la autenticación falló
-      isAuthenticated: false, // Controla si el usuario está autenticado
       publisherForm: {
         id: null,
         publisher: '',
@@ -75,7 +64,7 @@ export default {
       try {
         const response = await axios.get('https://tarea5sd.netlify.app/.netlify/functions/publishers', {
           headers: {
-            'X-Password': this.password
+            'X-Password': localStorage.getItem('authPassword') // Utiliza la clave de localStorage
           }
         });
         this.publishers = response.data;
@@ -87,7 +76,7 @@ export default {
       try {
         const response = await axios.post('https://tarea5sd.netlify.app/.netlify/functions/publishers', this.publisherForm, {
           headers: {
-            'X-Password': this.password
+            'X-Password': localStorage.getItem('authPassword') // Utiliza la clave de localStorage
           }
         });
         this.publishers.push(response.data);
@@ -100,7 +89,7 @@ export default {
       try {
         await axios.delete('https://tarea5sd.netlify.app/.netlify/functions/publishers', {
           headers: {
-            'X-Password': this.password,
+            'X-Password': localStorage.getItem('authPassword'), // Utiliza la clave de localStorage
             'Content-Type': 'application/json'
           },
           data: { id }
@@ -119,7 +108,7 @@ export default {
       try {
         await axios.put('https://tarea5sd.netlify.app/.netlify/functions/publishers', this.publisherForm, {
           headers: {
-            'X-Password': this.password
+            'X-Password': localStorage.getItem('authPassword') // Utiliza la clave de localStorage
           }
         });
         const index = this.publishers.findIndex(publisher => publisher.id === this.publisherForm.id);
@@ -144,23 +133,6 @@ export default {
       this.showAddForm = !this.showAddForm;
       if (!this.showAddForm) {
         this.clearForm();
-      }
-    },
-    async authenticate() {
-      try {
-        const response = await axios.get('https://tarea5sd.netlify.app/.netlify/functions/publishers', {
-          headers: {
-            'X-Password': this.password
-          }
-        });
-        if (response.status === 200) {
-          this.isAuthenticated = true;
-          this.authError = false;
-          this.fetchPublishers(); // Cargar editoriales después de la autenticación
-        }
-      } catch (error) {
-        this.authError = true;
-        console.error("Authentication failed:", error);
       }
     }
   },
@@ -262,40 +234,5 @@ ul.list-group-item {
 
 .btn-submit:hover {
   background-color: #e67e22;
-}
-
-/* Estilos del modal de autenticación */
-.auth-modal {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  background-color: #222;
-  padding: 20px;
-  border-radius: 10px;
-  margin: 20px auto;
-  max-width: 300px;
-}
-
-.auth-modal h2 {
-  color: #f39c12;
-}
-
-.auth-modal input {
-  padding: 10px;
-  margin: 10px 0;
-  border-radius: 5px;
-  border: 1px solid #ccc;
-}
-
-.auth-modal button {
-  padding: 10px 20px;
-  background-color: #2ecc71;
-  border: none;
-  color: white;
-  border-radius: 5px;
-}
-
-.error {
-  color: #e74c3c;
 }
 </style>
