@@ -1,5 +1,5 @@
 <template>
-  <div class="container mt-4">
+  <div class="container mt-4" v-if="isAuthenticated">
     <h2>Authors</h2>
     <ul class="list-group mb-3">
       <li v-for="author in authors" :key="author._id" class="list-group-item">
@@ -38,8 +38,15 @@
       </form>
     </div>
   </div>
-</template>
 
+  <!-- Modal de autenticación para pedir la clave -->
+  <div v-else class="auth-modal">
+    <h2>Enter Password</h2>
+    <input type="password" v-model="password" placeholder="Enter password">
+    <button @click="authenticate">Submit</button>
+    <p v-if="authError" class="error">Incorrect password. Please try again.</p>
+  </div>
+</template>
 
 <script>
 import axios from 'axios';
@@ -49,6 +56,9 @@ export default {
   data() {
     return {
       authors: [],
+      password: '',       // Clave de autenticación
+      authError: false,    // Indica si la autenticación falló
+      isAuthenticated: false, // Controla si el usuario está autenticado
       authorForm: {
         id: null,
         author: '',
@@ -63,7 +73,11 @@ export default {
   methods: {
     async fetchAuthors() {
       try {
-        const response = await axios.get('https://tarea4sdbackend.netlify.app/.netlify/functions/authors');
+        const response = await axios.get('https://tarea5sd.netlify.app/.netlify/functions/authors', {
+          headers: {
+            'X-Password': this.password
+          }
+        });
         this.authors = response.data;
       } catch (error) {
         console.error("Error fetching authors:", error);
@@ -71,7 +85,11 @@ export default {
     },
     async addAuthor() {
       try {
-        const response = await axios.post('https://tarea4sdbackend.netlify.app/.netlify/functions/authors', this.authorForm);
+        const response = await axios.post('https://tarea5sd.netlify.app/.netlify/functions/authors', this.authorForm, {
+          headers: {
+            'X-Password': this.password
+          }
+        });
         this.authors.push(response.data);
         this.clearForm();
       } catch (error) {
@@ -80,12 +98,13 @@ export default {
     },
     async deleteAuthor(id) {
       try {
-        console.log("Deleting author with ID:", id); // Verifica el ID en la consola
-        await axios.delete('https://tarea4sdbackend.netlify.app/.netlify/functions/authors', {
+        console.log("Deleting author with ID:", id);
+        await axios.delete('https://tarea5sd.netlify.app/.netlify/functions/authors', {
           headers: {
+            'X-Password': this.password,
             'Content-Type': 'application/json'
           },
-          data: { id } // El ID se envía en el cuerpo
+          data: { id }
         });
         this.authors = this.authors.filter(author => author._id !== id);
       } catch (error) {
@@ -99,12 +118,16 @@ export default {
     },
     async updateAuthor() {
       try {
-        await axios.put('https://tarea4sdbackend.netlify.app/.netlify/functions/authors', {
-          id: this.authorForm._id, // Cambia a `id` en el backend y mantén el nombre aquí
-          name: this.authorForm.name,
+        await axios.put('https://tarea5sd.netlify.app/.netlify/functions/authors', {
+          id: this.authorForm._id,
+          author: this.authorForm.author,
           nationality: this.authorForm.nationality,
           birth_year: this.authorForm.birth_year,
           fields: this.authorForm.fields
+        }, {
+          headers: {
+            'X-Password': this.password
+          }
         });
         const index = this.authors.findIndex(author => author._id === this.authorForm._id);
         if (index !== -1) this.authors.splice(index, 1, this.authorForm);
@@ -116,7 +139,7 @@ export default {
     clearForm() {
       this.authorForm = {
         id: null,
-        name: '',
+        author: '',
         nationality: '',
         birth_year: '',
         fields: ''
@@ -129,6 +152,23 @@ export default {
       if (!this.showAddForm) {
         this.clearForm();
       }
+    },
+    async authenticate() {
+      try {
+        const response = await axios.get('https://tarea5sd.netlify.app/.netlify/functions/authors', {
+          headers: {
+            'X-Password': this.password
+          }
+        });
+        if (response.status === 200) {
+          this.isAuthenticated = true;
+          this.authError = false;
+          this.fetchAuthors(); // Cargar autores después de la autenticación
+        }
+      } catch (error) {
+        this.authError = true;
+        console.error("Authentication failed:", error);
+      }
     }
   },
   mounted() {
@@ -138,94 +178,38 @@ export default {
 </script>
 
 <style>
-.container {
+/* Estilos */
+.auth-modal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   background-color: #2c3e50;
   padding: 20px;
   border-radius: 10px;
+  margin: 20px auto;
+  max-width: 300px;
 }
 
-h2 {
+.auth-modal h2 {
   color: #e74c3c;
 }
 
-ul.list-group {
-  background-color: #34495e;
-  border-radius: 10px;
-  padding: 15px;
-}
-
-ul.list-group-item {
-  background-color: #2c3e50;
-  color: #ecf0f1;
-  border: none;
-  margin-bottom: 10px;
-  border-radius: 8px;
-  display: flex;
-  justify-content: space-between;
-}
-
-.btn-edit,
-.btn-delete {
-  border: none;
-  border-radius: 8px;
-  padding: 8px 16px;
-  font-size: 14px;
-}
-
-.btn-edit {
-  background-color: #2980b9;
-  color: white;
-}
-
-.btn-delete {
-  background-color: #c0392b;
-  color: white;
-}
-
-.btn-add {
-  background-color: #27ae60;
-  color: white;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.btn-add:hover {
-  background-color: #2ecc71;
-}
-
-.form-container {
-  background-color: #2e4053;
-  padding: 15px;
-  border-radius: 10px;
-  margin-top: 20px;
-}
-
-.form-group {
-  margin-bottom: 10px;
-}
-
-.form-group label {
-  color: #ecf0f1;
-}
-
-.form-group input {
-  width: 100%;
-  padding: 8px;
+.auth-modal input {
+  padding: 10px;
+  margin: 10px 0;
   border-radius: 5px;
   border: 1px solid #7f8c8d;
 }
 
-.btn-submit {
-  background-color: #f39c12;
-  color: white;
+.auth-modal button {
   padding: 10px 20px;
+  background-color: #27ae60;
   border: none;
-  border-radius: 8px;
+  color: white;
+  border-radius: 5px;
 }
 
-.btn-submit:hover {
-  background-color: #e67e22;
+.error {
+  color: #e74c3c;
 }
 </style>

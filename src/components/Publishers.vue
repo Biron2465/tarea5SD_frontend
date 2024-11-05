@@ -1,5 +1,5 @@
 <template>
-  <div class="container mt-4">
+  <div class="container mt-4" v-if="isAuthenticated">
     <h2>Publishers</h2>
     <ul class="list-group mb-3">
       <li v-for="publisher in publishers" :key="publisher.id" class="list-group-item">
@@ -38,6 +38,14 @@
       </form>
     </div>
   </div>
+
+  <!-- Modal de autenticación para pedir la clave -->
+  <div v-else class="auth-modal">
+    <h2>Enter Password</h2>
+    <input type="password" v-model="password" placeholder="Enter password">
+    <button @click="authenticate">Submit</button>
+    <p v-if="authError" class="error">Incorrect password. Please try again.</p>
+  </div>
 </template>
 
 <script>
@@ -48,6 +56,9 @@ export default {
   data() {
     return {
       publishers: [],
+      password: '',       // Clave de autenticación
+      authError: false,    // Indica si la autenticación falló
+      isAuthenticated: false, // Controla si el usuario está autenticado
       publisherForm: {
         id: null,
         publisher: '',
@@ -62,7 +73,11 @@ export default {
   methods: {
     async fetchPublishers() {
       try {
-        const response = await axios.get('https://tarea4sdbackend.netlify.app/.netlify/functions/publishers');
+        const response = await axios.get('https://tarea5sd.netlify.app/.netlify/functions/publishers', {
+          headers: {
+            'X-Password': this.password
+          }
+        });
         this.publishers = response.data;
       } catch (error) {
         console.error("Error fetching publishers:", error);
@@ -70,7 +85,11 @@ export default {
     },
     async addPublisher() {
       try {
-        const response = await axios.post('https://tarea4sdbackend.netlify.app/.netlify/functions/publishers', this.publisherForm);
+        const response = await axios.post('https://tarea5sd.netlify.app/.netlify/functions/publishers', this.publisherForm, {
+          headers: {
+            'X-Password': this.password
+          }
+        });
         this.publishers.push(response.data);
         this.clearForm();
       } catch (error) {
@@ -79,8 +98,9 @@ export default {
     },
     async deletePublisher(id) {
       try {
-        await axios.delete('https://tarea4sdbackend.netlify.app/.netlify/functions/publishers', {
+        await axios.delete('https://tarea5sd.netlify.app/.netlify/functions/publishers', {
           headers: {
+            'X-Password': this.password,
             'Content-Type': 'application/json'
           },
           data: { id }
@@ -97,7 +117,11 @@ export default {
     },
     async updatePublisher() {
       try {
-        await axios.put('https://tarea4sdbackend.netlify.app/.netlify/functions/publishers', this.publisherForm);
+        await axios.put('https://tarea5sd.netlify.app/.netlify/functions/publishers', this.publisherForm, {
+          headers: {
+            'X-Password': this.password
+          }
+        });
         const index = this.publishers.findIndex(publisher => publisher.id === this.publisherForm.id);
         if (index !== -1) this.publishers.splice(index, 1, this.publisherForm);
         this.clearForm();
@@ -121,6 +145,23 @@ export default {
       if (!this.showAddForm) {
         this.clearForm();
       }
+    },
+    async authenticate() {
+      try {
+        const response = await axios.get('https://tarea5sd.netlify.app/.netlify/functions/publishers', {
+          headers: {
+            'X-Password': this.password
+          }
+        });
+        if (response.status === 200) {
+          this.isAuthenticated = true;
+          this.authError = false;
+          this.fetchPublishers(); // Cargar editoriales después de la autenticación
+        }
+      } catch (error) {
+        this.authError = true;
+        console.error("Authentication failed:", error);
+      }
     }
   },
   mounted() {
@@ -129,6 +170,7 @@ export default {
 };
 </script>
 
+<!-- Conserva los estilos originales del componente -->
 <style>
 .container {
   background-color: #222;
@@ -220,5 +262,40 @@ ul.list-group-item {
 
 .btn-submit:hover {
   background-color: #e67e22;
+}
+
+/* Estilos del modal de autenticación */
+.auth-modal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: #222;
+  padding: 20px;
+  border-radius: 10px;
+  margin: 20px auto;
+  max-width: 300px;
+}
+
+.auth-modal h2 {
+  color: #f39c12;
+}
+
+.auth-modal input {
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+}
+
+.auth-modal button {
+  padding: 10px 20px;
+  background-color: #2ecc71;
+  border: none;
+  color: white;
+  border-radius: 5px;
+}
+
+.error {
+  color: #e74c3c;
 }
 </style>

@@ -1,5 +1,5 @@
 <template>
-  <div class="container mt-4">
+  <div class="container mt-4" v-if="isAuthenticated">
     <h2>Books</h2>
     <ul class="list-group mb-3">
       <li v-for="book in books" :key="book.id" class="list-group-item">
@@ -18,6 +18,7 @@
     <div v-if="showAddForm" class="form-container">
       <h4>{{ editingBook ? 'Edit Book' : 'Add Book' }}</h4>
       <form @submit.prevent="editingBook ? updateBook() : addBook()">
+        <!-- Formulario de agregar/editar libro -->
         <div class="form-group">
           <label>Title</label>
           <input type="text" v-model="bookForm.title" required>
@@ -46,6 +47,14 @@
       </form>
     </div>
   </div>
+
+  <!-- Modal de autenticación para pedir la clave -->
+  <div v-else class="auth-modal">
+    <h2>Enter Password</h2>
+    <input type="password" v-model="password" placeholder="Enter password">
+    <button @click="authenticate">Submit</button>
+    <p v-if="authError" class="error">Incorrect password. Please try again.</p>
+  </div>
 </template>
 
 <script>
@@ -56,6 +65,9 @@ export default {
   data() {
     return {
       books: [],
+      password: '',
+      authError: false,
+      isAuthenticated: false,
       bookForm: {
         id: null,
         title: '',
@@ -75,7 +87,11 @@ export default {
   methods: {
     async fetchBooks() {
       try {
-        const response = await axios.get('https://tarea4sdbackend.netlify.app/.netlify/functions/books');
+        const response = await axios.get('https://tarea5sd.netlify.app/.netlify/functions/books', {
+          headers: {
+            'X-Password': this.password
+          }
+        });
         this.books = response.data;
       } catch (error) {
         console.error("Error fetching books:", error);
@@ -83,7 +99,13 @@ export default {
     },
     async addBook() {
       try {
-        const response = await axios.post('https://tarea4sdbackend.netlify.app/.netlify/functions/books', this.bookForm);
+        console.log("Adding book:", this.bookForm); // Verificar si el método se llama
+        const response = await axios.post('https://tarea5sd.netlify.app/.netlify/functions/books', this.bookForm, {
+          headers: {
+            'X-Password': this.password
+          }
+        });
+        console.log("Book created:", response.data);
         this.books.push(response.data);
         this.clearForm();
       } catch (error) {
@@ -92,8 +114,9 @@ export default {
     },
     async deleteBook(id) {
       try {
-        await axios.delete('https://tarea4sdbackend.netlify.app/.netlify/functions/books', {
+        await axios.delete('https://tarea5sd.netlify.app/.netlify/functions/books', {
           headers: {
+            'X-Password': this.password,
             'Content-Type': 'application/json'
           },
           data: { id }
@@ -110,9 +133,15 @@ export default {
     },
     async updateBook() {
       try {
-        await axios.put('https://tarea4sdbackend.netlify.app/.netlify/functions/books', this.bookForm);
+        console.log("Updating book:", this.bookForm); // Verificar si el método se llama
+        const response = await axios.put('https://tarea5sd.netlify.app/.netlify/functions/books', this.bookForm, {
+          headers: {
+            'X-Password': this.password
+          }
+        });
+        console.log("Book updated:", response.data);
         const index = this.books.findIndex(book => book.id === this.bookForm.id);
-        if (index !== -1) this.books.splice(index, 1, this.bookForm);
+        if (index !== -1) this.books.splice(index, 1, response.data);
         this.clearForm();
       } catch (error) {
         console.error("Error updating book:", error);
@@ -139,103 +168,61 @@ export default {
       if (!this.showAddForm) {
         this.clearForm();
       }
+    },
+    async authenticate() {
+      try {
+        const response = await axios.get('https://tarea5sd.netlify.app/.netlify/functions/books', {
+          headers: {
+            'X-Password': this.password
+          }
+        });
+        if (response.status === 200) {
+          this.isAuthenticated = true;
+          this.authError = false;
+          this.fetchBooks();
+        }
+      } catch (error) {
+        this.authError = true;
+        console.error("Authentication failed:", error);
+      }
     }
-  },
-  mounted() {
-    this.fetchBooks();
   }
 };
 </script>
 
 <style>
-.container {
-  background-color: #1e272e;
+/* Estilos */
+.auth-modal {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background-color: #2f3542;
   padding: 20px;
   border-radius: 10px;
+  margin: 20px auto;
+  max-width: 300px;
 }
 
-h2 {
+.auth-modal h2 {
   color: #ffa502;
 }
 
-ul.list-group {
-  background-color: #57606f;
-  border-radius: 10px;
-  padding: 15px;
-}
-
-ul.list-group-item {
-  background-color: #2f3542;
-  color: #fff;
-  border: none;
-  margin-bottom: 10px;
-  border-radius: 8px;
-  display: flex;
-  justify-content: space-between;
-}
-
-.btn-edit,
-.btn-delete {
-  border: none;
-  border-radius: 8px;
-  padding: 8px 16px;
-  font-size: 14px;
-}
-
-.btn-edit {
-  background-color: #0984e3;
-  color: white;
-}
-
-.btn-delete {
-  background-color: #d63031;
-  color: white;
-}
-
-.btn-add {
-  background-color: #16a085;
-  color: white;
-  padding: 10px 20px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.btn-add:hover {
-  background-color: #1abc9c;
-}
-
-.form-container {
-  background-color: #34495e;
-  padding: 15px;
-  border-radius: 10px;
-  margin-top: 20px;
-}
-
-.form-group {
-  margin-bottom: 10px;
-}
-
-.form-group label {
-  color: #f5f6fa;
-}
-
-.form-group input {
-  width: 100%;
-  padding: 8px;
+.auth-modal input {
+  padding: 10px;
+  margin: 10px 0;
   border-radius: 5px;
   border: 1px solid #7f8c8d;
 }
 
-.btn-submit {
-  background-color: #f1c40f;
-  color: white;
+.auth-modal button {
   padding: 10px 20px;
+  background-color: #1abc9c;
   border: none;
-  border-radius: 8px;
+  color: white;
+  border-radius: 5px;
 }
 
-.btn-submit:hover {
-  background-color: #f39c12;
+.error {
+  color: #e74c3c;
 }
 </style>
